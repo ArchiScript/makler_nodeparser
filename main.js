@@ -116,7 +116,7 @@ async function runScraper() {
     console.log(`✅ Step ${i + 1} completed\n`);
   }
 
-  console.log(`All ${refs.length} pages processed successfully!`);
+  console.log(`All ${refs.length} pages processed successfully! `);
 
   console.log('Sending data via API...');
   let inserted = null;
