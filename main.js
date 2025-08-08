@@ -39,8 +39,9 @@ const httpsAgent = isDev
 
 // Scraper function extracted for reuse
 async function runScraper() {
+  const dynamicWSEndpoint = process.env.NODE_ENV == 'development'? process.env.WS_ENDPOINT: 'ws://browserless:3000'
   const browser = await puppeteer.connect({
-    browserWSEndpoint: 'ws://browserless:3000',
+    browserWSEndpoint: dynamicWSEndpoint,
   });
   console.time('execution time');
 
