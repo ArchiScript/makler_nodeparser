@@ -77,7 +77,7 @@ async function runScraper() {
     console.log(`✅ Page loaded successfully`);
     logger.info('Page loaded successfully');
 
-    console.log(`Extracting page wrapper...`);
+    console.log(`Extracting page wrapper... `);
     const itemObject = await page.$eval(
       '#contentWrapper',
       (el, ref) => {
