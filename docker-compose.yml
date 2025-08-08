@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  browserless:
+    image: browserless/chrome:latest
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ht-net
+    ports:
+      - "3000:3000" # optional, if you need access from host; otherwise remove
+
+  makler-nodeparser:
+    image: ghcr.io/archiscript/makler-nodeparser:latest
+    networks:
+      - ht-net
+    environment:
+      - WS_ENDPOINT=ws://browserless:3000
+      - API_BASE=${API_BASE}
+      - NODE_ENV=production
+    secrets:
+      - makler_parser_api_token
+    ports:
+      - target: 8080
+        published: 8080
+        protocol: tcp
+        mode: host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://browserless:3000"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+networks:
+  ht-net:
+    external: true
+
+secrets:
+  makler_parser_api_token:
+    external: true
