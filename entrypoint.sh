@@ -11,7 +11,7 @@ fi
 
 ### Load API TOKEN
 if [ -f /run/secrets/makler_parser_api_token ]; then
-  export API_TOKEN=$(cat /run/secrets/makler_parser_api_token)
+  export "API_TOKEN=$(cat /run/secrets/makler_parser_api_token)"
   echo "Loaded API_TOKEN from /run/secrets"
 elif [ -n "$API_TOKEN" ]; then
   echo "Using API_TOKEN from environment"
