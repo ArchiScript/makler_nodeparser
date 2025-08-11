@@ -147,18 +147,28 @@ async function postData(url, payload) {
 }
 
 async function connectToBrowserless(retries = 5, delayMs = 2000) {
+  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`WS_ENDPOINT env var: ${process.env.WS_ENDPOINT}`);
+
   const endpoint = process.env.NODE_ENV === 'development' ? process.env.WS_ENDPOINT : 'ws://browserless:3000';
+  console.log(`Using browserless endpoint: ${endpoint}`);
+
   for (let i = 0; i < retries; i++) {
     try {
-      return await puppeteer.connect({ browserWSEndpoint: endpoint });
+      console.log(`Attempt ${i + 1}: Connecting to browserless at ${endpoint}...`);
+      const browser = await puppeteer.connect({ browserWSEndpoint: endpoint });
+      console.log('Successfully connected to browserless!');
+      return browser;
     } catch (err) {
-      console.log(`Browserless connection attempt ${i + 1} failed. Retrying in ${delayMs}ms...`);
-      await new Promise((res) => setTimeout(res, delayMs));
+      console.error(`Attempt ${i + 1} failed with error: ${err.message || err}`);
+      if (i < retries - 1) {
+        console.log(`Retrying in ${delayMs}ms...`);
+        await new Promise((res) => setTimeout(res, delayMs));
+      }
     }
   }
   throw new Error(`Failed to connect to browserless at ${endpoint} after ${retries} attempts`);
 }
-
 
 // Express server setup
 const app = express();
