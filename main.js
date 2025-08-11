@@ -39,10 +39,9 @@ const httpsAgent = isDev
 
 // Scraper function extracted for reuse
 async function runScraper() {
-  const dynamicWSEndpoint = process.env.NODE_ENV == 'development'? process.env.WS_ENDPOINT: 'ws://browserless:3000'
-  const browser = await puppeteer.connect({
-    browserWSEndpoint: dynamicWSEndpoint,
-  });
+  
+  const browser = await connectToBrowserless();
+
   console.time('execution time');
 
   const page = await browser.newPage();
@@ -147,10 +146,26 @@ async function postData(url, payload) {
   }
 }
 
+async function connectToBrowserless(retries = 5, delayMs = 2000) {
+  const endpoint = process.env.NODE_ENV === 'development' ? process.env.WS_ENDPOINT : 'ws://browserless:3000';
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await puppeteer.connect({ browserWSEndpoint: endpoint });
+    } catch (err) {
+      console.log(`Browserless connection attempt ${i + 1} failed. Retrying in ${delayMs}ms...`);
+      await new Promise((res) => setTimeout(res, delayMs));
+    }
+  }
+  throw new Error(`Failed to connect to browserless at ${endpoint} after ${retries} attempts`);
+}
+
+
 // Express server setup
 const app = express();
 const PORT = process.env.PORT || 8081;
 
+
+//scraper endpoint
 app.get('/run', async (req, res) => {
   console.log('Received /run request');
   try {
@@ -161,6 +176,18 @@ app.get('/run', async (req, res) => {
     res.status(500).json({ status: 'error', message: error.message });
   }
 });
+
+
+// Health check endpoint
+app.get('/test', async (req, res) => {
+  try {
+    res.status(200).json({ status: 'ok', message: 'Service healthy' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`Scraper server listening on port ${PORT}`);

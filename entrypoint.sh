@@ -21,20 +21,6 @@ else
   exit 1
 fi
 
-# Wait for browserless to be healthy before starting
-echo "Waiting for browserless to be ready..."
-MAX_WAIT=60  # seconds
-WAITED=0
-
-until curl -sf http://browserless:3000 > /dev/null; do
-  sleep 2
-  WAITED=$((WAITED + 2))
-  if [ "$WAITED" -ge "$MAX_WAIT" ]; then
-    echo "ERROR: Browserless not ready after $MAX_WAIT seconds"
-    exit 1
-  fi
-done
-echo "Browserless is up!"
 
 # Write to temporary file for tools like SSH
 echo "$API_TOKEN" > /tmp/makler_parser_api_token
