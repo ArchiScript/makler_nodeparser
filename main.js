@@ -162,11 +162,11 @@ async function connectToBrowserless(retries = 5, delayMs = 2000) {
 
 // Express server setup
 const app = express();
-const PORT = process.env.PORT || 8081;
+const PORT = process.env.PORT || 8080;
 
 
 //scraper endpoint
-app.get('/run', async (req, res) => {
+app.post('/run', async (req, res) => {
   console.log('Received /run request');
   try {
     const result = await runScraper();
@@ -189,6 +189,6 @@ app.get('/test', async (req, res) => {
 
 
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0',() => {
   console.log(`Scraper server listening on port ${PORT}`);
 });
