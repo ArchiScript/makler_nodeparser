@@ -13,12 +13,12 @@ services:
     secrets:
       - makler_parser_api_token
     ports:
-      - target: 8080
-        published: 8080
+      - target: 8081
+        published: 8081
         protocol: tcp
         mode: host
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/test"]
+      test: ["CMD", "curl", "-f", "http://localhost:8081/test"]
       interval: 10s
       timeout: 5s
       retries: 5
