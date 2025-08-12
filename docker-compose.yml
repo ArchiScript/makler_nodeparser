@@ -13,7 +13,7 @@ services:
     secrets:
       - makler_parser_api_token
     ports:
-      - target: 35001
+      - target: 8080
         published: 35001
         protocol: tcp
         mode: host
