@@ -1,17 +1,6 @@
 version: "3.8"
 
 services:
-  browserless:
-    image: browserless/chrome:latest
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - ht-net
-    ports:
-      - "3000:3000" # optional, if you need access from host; otherwise remove
 
   makler-nodeparser:
     image: ghcr.io/archiscript/makler-nodeparser:latest
