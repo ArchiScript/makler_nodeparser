@@ -63,7 +63,6 @@ async function runScraper() {
   );
   console.log('found links: ', refs.length);
 
-  refs = refs.slice(0, 3);
   const items = [];
 
   for (let i = 0; i < refs.length; i++) {

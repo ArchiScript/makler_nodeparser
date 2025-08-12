@@ -3,7 +3,7 @@ version: "3.8"
 services:
 
   makler-nodeparser:
-    image: ghcr.io/archiscript/makler-nodeparser:latest
+    image: ghcr.io/{USER_NAME_LC}/makler-nodeparser:latest
     networks:
       - ht-net
     environment:
