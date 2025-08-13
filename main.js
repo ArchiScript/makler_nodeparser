@@ -83,7 +83,7 @@ async function runScraper() {
         const $itemTitleInfo = el.querySelector('.item_title_info');
         const $spans = $itemTitleInfo.querySelectorAll('span');
         const city = $spans[0]?.textContent?.trim();
-        const viewsText = $spans[1]?.textContent?.trim();
+        const viewsText = $spans[2]?.textContent?.trim();
         const viewsMatch = viewsText?.match(/(\d+)/);
         const views = viewsMatch ? parseInt(viewsMatch[1]) : null;
         const $content = el.querySelector('#anText');
