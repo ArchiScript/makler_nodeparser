@@ -84,8 +84,9 @@ async function runScraper() {
         const $spans = $itemTitleInfo.querySelectorAll('span');
         const city = $spans[0]?.textContent?.trim();
         const viewsText = $spans[2]?.textContent?.trim();
-        const viewsMatch = viewsText?.match(/(\d+)/);
-        const views = viewsMatch ? parseInt(viewsMatch[1]) : null;
+        const viewsMatch = viewsText?.match(/^Просмотров:\s*?(?<views>\d+)$/);
+        console.log(`Views text matched: ${viewsMatch}`);
+        const views = viewsMatch ? parseInt(viewsMatch['views']) : null;
         const $content = el.querySelector('#anText');
         let urlsTextArr = Array.from($content.querySelectorAll('a')).map(
           (href) => href.textContent
