@@ -66,54 +66,64 @@ async function runScraper() {
   const items = [];
 
   for (let i = 0; i < refs.length; i++) {
-    const ref = refs[i];
-    console.time(`Step ${i + 1}`);
-    console.log(`\n=== Step ${i + 1}/${refs.length} ===`);
-    console.log(`Navigating to: ${ref}`);
+  const ref = refs[i];
+  console.time(`Step ${i + 1}`);
+  console.log(`\n=== Step ${i + 1}/${refs.length} ===`);
+  console.log(`Navigating to: ${ref}`);
 
-    await page.goto(ref);
-    console.log(`✅ Page loaded successfully`);
-    logger.info('Page loaded successfully');
+  let itemObject = null;
+  const maxRetries = 3;
 
-    console.log(`Extracting page wrapper... `);
-    const itemObject = await page.$eval(
-      '#contentWrapper',
-      (el, ref) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Wait for page to load completely
+      await page.goto(ref, { waitUntil: 'networkidle2' });
+      console.log(`✅ Page loaded successfully (attempt ${attempt})`);
+      logger.info('Page loaded successfully');
+
+      // Wait for the element to exist
+      await page.waitForSelector('#contentWrapper', { timeout: 5000 });
+
+      // Extract content
+      itemObject = await page.$eval('#contentWrapper', (el, ref) => {
         const title = el.querySelector('h1')?.textContent?.trim();
         const $itemTitleInfo = el.querySelector('.item_title_info');
-        const $spans = $itemTitleInfo.querySelectorAll('span');
+        const $spans = $itemTitleInfo?.querySelectorAll('span') || [];
         const city = $spans[0]?.textContent?.trim();
         const viewsText = $spans[2]?.textContent?.trim();
         const viewsMatch = viewsText?.match(/^Просмотров:\s*?(?<views>\d+)$/);
-        console.log(`Views text matched: ${viewsMatch}`);
         const views = viewsMatch ? parseInt(viewsMatch['views']) : null;
         const $content = el.querySelector('#anText');
-        let urlsTextArr = Array.from($content.querySelectorAll('a')).map(
-          (href) => href.textContent
-        );
-        urlsTextArr = urlsTextArr.filter((url) =>
-          url.match(/https:\/\/job.hi-tech.md\/job\//)
-        );
-        console.log(ref);
-        const item = {
-          url: ref,
-          title,
-          city,
-          views,
-          target_urls: urlsTextArr.join(','),
-        };
-        return item;
-      },
-      ref
-    );
+        let urlsTextArr = Array.from($content?.querySelectorAll('a') || [])
+          .map((href) => href.textContent)
+          .filter((url) => url.match(/https:\/\/job.hi-tech.md\/job\//));
+        return { url: ref, title, city, views, target_urls: urlsTextArr.join(',') };
+      }, ref);
 
-    items.push(itemObject);
-
-    console.log(`⏳ Waiting 0.1 second...`);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    console.log(`✅ Step ${i + 1} completed\n`);
+      // If successful, break out of retry loop
+      break;
+    } catch (err) {
+      console.warn(`Attempt ${attempt} failed for ${ref}: ${err.message}`);
+      if (attempt === maxRetries) {
+        console.error(`Failed to process ${ref} after ${maxRetries} attempts.`);
+      } else {
+        console.log('Retrying in 500ms...');
+        await page.waitForTimeout(500); // short delay before retry
+      }
+    }
   }
+
+  if (itemObject) {
+    items.push(itemObject);
+    console.log(`✅ Step ${i + 1} completed\n`);
+  } else {
+    console.log(`⚠️ Skipping step ${i + 1} due to repeated errors\n`);
+  }
+
+  console.log('⏳ Waiting 0.1 second...');
+  await new Promise((resolve) => setTimeout(resolve, 100));
+}
+
 
   console.log(`All ${refs.length} pages processed successfully! `);
 
