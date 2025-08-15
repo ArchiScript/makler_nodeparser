@@ -76,53 +76,53 @@ async function runScraper() {
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Wait for page to load completely
-      await page.goto(ref, { waitUntil: 'networkidle2' });
-      console.log(`✅ Page loaded successfully (attempt ${attempt})`);
-      logger.info('Page loaded successfully');
+      // Navigate to page
+      await page.goto(ref, { waitUntil: 'domcontentloaded' });
+      console.log(`✅ Page loaded (attempt ${attempt})`);
 
-      // Wait for the element to exist
-      await page.waitForSelector('#contentWrapper', { timeout: 5000 });
+      // Wait for main selector
+      await page.waitForSelector('#contentWrapper', { timeout: 3000 });
 
-      // Extract content
+      // Extract data
       itemObject = await page.$eval('#contentWrapper', (el, ref) => {
         const title = el.querySelector('h1')?.textContent?.trim();
-        const $itemTitleInfo = el.querySelector('.item_title_info');
-        const $spans = $itemTitleInfo?.querySelectorAll('span') || [];
-        const city = $spans[0]?.textContent?.trim();
-        const viewsText = $spans[2]?.textContent?.trim();
+        const $info = el.querySelector('.item_title_info');
+        const spans = $info?.querySelectorAll('span') || [];
+        const city = spans[0]?.textContent?.trim();
+        const viewsText = spans[2]?.textContent?.trim();
         const viewsMatch = viewsText?.match(/^Просмотров:\s*?(?<views>\d+)$/);
         const views = viewsMatch ? parseInt(viewsMatch['views']) : null;
         const $content = el.querySelector('#anText');
-        let urlsTextArr = Array.from($content?.querySelectorAll('a') || [])
-          .map((href) => href.textContent)
-          .filter((url) => url.match(/https:\/\/job.hi-tech.md\/job\//));
-        return { url: ref, title, city, views, target_urls: urlsTextArr.join(',') };
+        let urls = Array.from($content?.querySelectorAll('a') || [])
+          .map(a => a.textContent)
+          .filter(url => url.match(/https:\/\/job.hi-tech.md\/job\//));
+        return { url: ref, title, city, views, target_urls: urls.join(',') };
       }, ref);
 
-      // If successful, break out of retry loop
+      // Success: break retry loop
       break;
+
     } catch (err) {
       console.warn(`Attempt ${attempt} failed for ${ref}: ${err.message}`);
-      if (attempt === maxRetries) {
-        console.error(`Failed to process ${ref} after ${maxRetries} attempts.`);
-      } else {
+
+      if (attempt < maxRetries) {
         console.log('Retrying in 500ms...');
-        await page.waitForTimeout(500); // short delay before retry
+        await new Promise(res => setTimeout(res, 500)); // replace waitForTimeout
+      } else {
+        console.error(`⚠️ Skipping ${ref} after ${maxRetries} failed attempts`);
       }
     }
   }
 
   if (itemObject) {
     items.push(itemObject);
-    console.log(`✅ Step ${i + 1} completed\n`);
-  } else {
-    console.log(`⚠️ Skipping step ${i + 1} due to repeated errors\n`);
+    console.log(`✅ Step ${i + 1} completed`);
   }
 
-  console.log('⏳ Waiting 0.1 second...');
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // Small delay between steps
+  await new Promise(res => setTimeout(res, 100));
 }
+
 
 
   console.log(`All ${refs.length} pages processed successfully! `);
