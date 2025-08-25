@@ -39,51 +39,89 @@ const httpsAgent = isDev
 
 // Scraper function extracted for reuse
 async function runScraper() {
-  
   const browser = await connectToBrowserless();
 
   console.time('execution time');
 
-  const page = await browser.newPage();
+  // Shared page for normal runs
+  const sharedPage = await browser.newPage();
+  await setupRequestInterception(sharedPage);
 
-  await page.setRequestInterception(true);
-  page.on('request', (req) => {
-    const resourceType = req.resourceType();
-    if (['image', 'stylesheet', 'font'].includes(resourceType)) {
-      req.abort();
-    } else {
-      req.continue();
-    }
-  });
+  await sharedPage.goto('https://makler.md/ru/an/user/index/id/1262205');
 
-  await page.goto('https://makler.md/ru/an/user/index/id/1262205');
-
-  let refs = await page.$$eval('.ls-detail_anUrl', (elements) =>
+  let refs = await sharedPage.$$eval('.ls-detail_anUrl', (elements) =>
     elements.map((el) => el.href)
   );
   console.log('found links: ', refs.length);
 
+  refs = refs.slice(0, 3);
   const items = [];
 
   for (let i = 0; i < refs.length; i++) {
-  const ref = refs[i];
-  console.time(`Step ${i + 1}`);
-  console.log(`\n=== Step ${i + 1}/${refs.length} ===`);
-  console.log(`Navigating to: ${ref}`);
+    const ref = refs[i];
+    console.time(`Step ${i + 1}`);
+    console.log(`\n=== Step ${i + 1}/${refs.length} ===`);
+    console.log(`Navigating to: ${ref}`);
 
+    let itemObject = null;
+
+    try {
+      // Try with shared page first
+      itemObject = await scrapePage(browser, sharedPage, ref);
+    } catch (err) {
+      console.warn(`Shared page failed for ${ref}: ${err.message}`);
+
+      if (err.message.includes('frame was detached')) {
+        console.log(`⚠️ Retrying ${ref} in a fresh tab...`);
+        const newPage = await browser.newPage();
+        await setupRequestInterception(newPage);
+
+        try {
+          itemObject = await scrapePage(browser, newPage, ref);
+        } catch (innerErr) {
+          console.error(`❌ Even fresh tab failed for ${ref}: ${innerErr.message}`);
+        } finally {
+          await newPage.close();
+        }
+      }
+    }
+
+    if (itemObject) {
+      items.push(itemObject);
+      console.log(`✅ Step ${i + 1} completed`);
+    }
+
+    console.timeEnd(`Step ${i + 1}`);
+
+    // Small delay between steps
+    await new Promise((res) => setTimeout(res, 100));
+  }
+
+  console.log(`All ${refs.length} pages processed!`);
+  console.log('Sending data via API...');
+
+  let inserted = null;
+  if (items.length > 0) {
+    inserted = await postData(`${apiBase}/v1/makler_job_stats?token=${token}`, items);
+    console.log(inserted);
+  }
+
+  await browser.close();
+  console.timeEnd('execution time');
+  return inserted;
+}
+
+// 🔹 Page scraping logic (reused by shared and fresh page)
+async function scrapePage(browser, page, ref, maxRetries = 3) {
   let itemObject = null;
-  const maxRetries = 3;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Navigate to page
-      await page.goto(ref, { waitUntil: 'domcontentloaded' });
+      await page.goto(ref, { waitUntil: 'domcontentloaded', timeout: 8000 });
       console.log(`✅ Page loaded (attempt ${attempt})`);
 
-      // Wait for main selector
       await page.waitForSelector('#contentWrapper', { timeout: 3000 });
 
-      // Extract data
       itemObject = await page.$eval('#contentWrapper', (el, ref) => {
         const title = el.querySelector('h1')?.textContent?.trim();
         const $info = el.querySelector('.item_title_info');
@@ -94,51 +132,39 @@ async function runScraper() {
         const views = viewsMatch ? parseInt(viewsMatch['views']) : null;
         const $content = el.querySelector('#anText');
         let urls = Array.from($content?.querySelectorAll('a') || [])
-          .map(a => a.textContent)
-          .filter(url => url.match(/https:\/\/job.hi-tech.md\/job\//));
+          .map((a) => a.textContent)
+          .filter((url) => url.match(/https:\/\/job.hi-tech.md\/job\//));
         return { url: ref, title, city, views, target_urls: urls.join(',') };
       }, ref);
 
-      // Success: break retry loop
-      break;
-
+      break; // ✅ success, exit retry loop
     } catch (err) {
       console.warn(`Attempt ${attempt} failed for ${ref}: ${err.message}`);
-
       if (attempt < maxRetries) {
         console.log('Retrying in 500ms...');
-        await new Promise(res => setTimeout(res, 500)); // replace waitForTimeout
+        await new Promise((res) => setTimeout(res, 500));
       } else {
-        console.error(`⚠️ Skipping ${ref} after ${maxRetries} failed attempts`);
+        throw err; // ❌ bubble up to hybrid handler
       }
     }
   }
 
-  if (itemObject) {
-    items.push(itemObject);
-    console.log(`✅ Step ${i + 1} completed`);
-  }
-
-  // Small delay between steps
-  await new Promise(res => setTimeout(res, 100));
+  return itemObject;
 }
 
-
-
-  console.log(`All ${refs.length} pages processed successfully! `);
-
-  console.log('Sending data via API...');
-  let inserted = null;
-  if (items.length > 0) {
-    inserted = await postData(`${apiBase}/v1/makler_job_stats?token=${token}`, items);
-    console.log(inserted);
-  }
-
-  await browser.close();
-
-  console.timeEnd('execution time');
-  return inserted;
+// 🔹 Request interception setup (DRY helper)
+async function setupRequestInterception(page) {
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    const resourceType = req.resourceType();
+    if (['image', 'stylesheet', 'font'].includes(resourceType)) {
+      req.abort();
+    } else {
+      req.continue();
+    }
+  });
 }
+
 
 async function postData(url, payload) {
   try {
