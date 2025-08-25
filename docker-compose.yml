@@ -13,10 +13,7 @@ services:
     secrets:
       - makler_parser_api_token
     ports:
-      - target: 35001
-        published: 35001
-        protocol: tcp
-        mode: bridge
+      - "127.0.0.1:35001:35001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:35001/test"]
       interval: 10s
